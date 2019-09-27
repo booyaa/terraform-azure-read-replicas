@@ -44,4 +44,12 @@ resource "azurerm_postgresql_server" "demo" {
   }
 }
 
+resource "azurerm_postgresql_configuration" "demo" {
+  name = "azure.replication_support"
+  resource_group_name = azurerm_resource_group.demo.name
+  server_name = azurerm_postgresql_server.demo.name
+  value = "REPLICA"
+}
+
+
 
