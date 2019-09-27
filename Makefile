@@ -19,5 +19,5 @@ deploy:
 
 clean:
 	@test -f azure.tfvars || (echo 'run `make setup` and update values in azure.tfvars' && exit -1)
-	terraform destroy
+	terraform destroy -var-file azure.tfvars
 
