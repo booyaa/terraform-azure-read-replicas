@@ -1,5 +1,5 @@
 provider "azurerm" {
-  version = "=1.32.0"
+  version = "=1.34.0"
 }
 
 variable "owner" {}
@@ -8,21 +8,18 @@ variable "admin_login" {}
 variable "admin_password" {}
 
 resource "azurerm_resource_group" "demo" {
-  name     = "demo"
-  location = var.location
-
-  tags = {
-    owner = var.owner
-  }
+    location = "uksouth"
+    name     = "demo"
+    tags     = {}
 }
 
 resource "azurerm_postgresql_server" "demo" {
-  name                = "terraform-demo"
+  name                = "pr1mary-demo"
   location            = azurerm_resource_group.demo.location
   resource_group_name = azurerm_resource_group.demo.name
 
   sku {
-    name     = "GP_Gen5_2" #  {pricing tier}_{compute generation}_{vCores}
+    name     = "GP_Gen5_2" #  {pricing tier}_{compute generation/family}_{no of vCores}
     capacity = 2
     tier     = "GeneralPurpose"
     family   = "Gen5"
@@ -30,13 +27,14 @@ resource "azurerm_postgresql_server" "demo" {
 
   storage_profile {
     storage_mb            = 5120
-    backup_retention_days = 35
+    backup_retention_days = 7
     geo_redundant_backup  = "Disabled"
+    auto_grow = "Disabled"
   }
 
   administrator_login          = var.admin_login
   administrator_login_password = var.admin_password
-  version                      = "9.5"
+  version                      = "10"
   ssl_enforcement              = "Enabled"
 
   tags = {
@@ -44,11 +42,37 @@ resource "azurerm_postgresql_server" "demo" {
   }
 }
 
-resource "azurerm_postgresql_configuration" "demo" {
-  name = "azure.replication_support"
-  resource_group_name = azurerm_resource_group.demo.name
-  server_name = azurerm_postgresql_server.demo.name
-  value = "REPLICA"
+resource "null_resource" "demo" {
+  # enables replication on the primary server
+  provisioner "local-exec" {
+    command = <<ENABLE_REPLICATION
+az postgres server configuration set \
+  --resource-group ${azurerm_resource_group.demo.name} \
+  --server-name ${azurerm_postgresql_server.demo.name} \
+  --name azure.replication_support --value REPLICA
+ENABLE_REPLICATION
+  }
+
+  # restart primary for change to take effect
+  provisioner "local-exec" {
+    command = <<RESTART_SERVER
+az postgres server restart \
+  --name ${azurerm_postgresql_server.demo.name} \
+  --resource-group ${azurerm_resource_group.demo.name}
+RESTART_SERVER
+  }
+
+  # create replica
+  provisioner "local-exec" {
+    command = <<CREATE_REPLICA
+az postgres server replica create \
+  --name ${azurerm_postgresql_server.demo.name}-replica \
+  --source-server ${azurerm_postgresql_server.demo.name} \
+  --resource-group ${azurerm_resource_group.demo.name}
+CREATE_REPLICA
+  }
+
+  depends_on = [azurerm_postgresql_server.demo]
 }
 
 
