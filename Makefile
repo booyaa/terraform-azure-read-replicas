@@ -11,11 +11,11 @@ setup: azure.tfvars
 build:
 	@test -f azure.tfvars || (echo 'run `make setup` and update values in azure.tfvars' && exit -1)
 	@terraform init
-	@terraform plan -var-file azure.tfvars
+	@terraform plan -var-file azure.tfvars -out out.plan
 
 deploy: 
 	@test -f azure.tfvars || (echo 'run `make setup` and update values in azure.tfvars' && exit -1)
-	@terraform apply -var-file azure.tfvars
+	@terraform apply out.plan
 
 clean:
 	@test -f azure.tfvars || (echo 'run `make setup` and update values in azure.tfvars' && exit -1)
