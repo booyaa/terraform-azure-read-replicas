@@ -8,9 +8,9 @@ variable "admin_login" {}
 variable "admin_password" {}
 
 resource "azurerm_resource_group" "demo" {
-    location = "uksouth"
-    name     = "demo"
-    tags     = {}
+  location = "uksouth"
+  name     = "demo"
+  tags     = {}
 }
 
 resource "azurerm_postgresql_server" "demo" {
@@ -29,7 +29,7 @@ resource "azurerm_postgresql_server" "demo" {
     storage_mb            = 5120
     backup_retention_days = 7
     geo_redundant_backup  = "Disabled"
-    auto_grow = "Disabled"
+    auto_grow             = "Disabled"
   }
 
   administrator_login          = var.admin_login
@@ -40,6 +40,9 @@ resource "azurerm_postgresql_server" "demo" {
   tags = {
     owner = var.owner
   }
+}
+locals {
+  postgresql_server_replica_name = format("%s-replica", azurerm_postgresql_server.demo.name)
 }
 
 resource "null_resource" "demo" {
@@ -66,7 +69,7 @@ RESTART_SERVER
   provisioner "local-exec" {
     command = <<CREATE_REPLICA
 az postgres server replica create \
-  --name ${azurerm_postgresql_server.demo.name}-replica \
+  --name ${local.postgresql_server_replica_name} \
   --source-server ${azurerm_postgresql_server.demo.name} \
   --resource-group ${azurerm_resource_group.demo.name}
 CREATE_REPLICA
@@ -74,6 +77,3 @@ CREATE_REPLICA
 
   depends_on = [azurerm_postgresql_server.demo]
 }
-
-
-
